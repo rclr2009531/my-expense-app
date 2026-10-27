@@ -3,24 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>極簡智慧記帳</title>
+  <title>家庭共同記帳</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <!-- Tailwind CSS & Chart.js CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    body { -webkit-tap-highlight-color: transparent; }
-  </style>
+  <style> body { -webkit-tap-highlight-color: transparent; } </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans pb-24">
 
+  <script>
+    // ⭐️ 只要把這裡換成你步驟二取得的網址即可 ⭐️
+    const API_URL = "https://script.google.com/macros/s/AKfycbzl0m2-UzvqxRw67n96KpyDnd5J2kGs8Mqjm3O1qB2cRBCkmvi6Jnnt0kTI5k6xslBwwg/exec";
+  </script>
+
   <!-- 頂部標題與總進度 -->
   <header class="bg-white px-5 pt-10 pb-4 shadow-sm border-b">
-    <div class="flex justify-between items-center mb-2">
-      <h1 class="text-xl font-bold tracking-tight">財務概況</h1>
-      <span id="current-month" class="text-xs font-semibold px-2.5 py-1 bg-gray-100 rounded-full text-gray-600">--月</span>
+    <div class="flex justify-between items-center mb-1">
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-bold tracking-tight">共同記帳本</h1>
+        <span id="sync-status" class="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold">☁️ 雲端已連線</span>
+      </div>
+      <button onclick="fetchCloudData()" class="text-xs text-gray-500 hover:text-emerald-600 flex items-center gap-1">
+        <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 重整
+      </button>
     </div>
     <div class="mt-3">
       <div class="flex justify-between text-xs text-gray-500 mb-1">
@@ -33,10 +39,9 @@
     </div>
   </header>
 
-  <!-- 主內容區塊 (切換分頁) -->
   <main class="max-w-md mx-auto p-4">
 
-    <!-- TAB 1: 極速記帳 -->
+    <!-- TAB 1: 記帳 -->
     <section id="tab-log" class="space-y-4">
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <label class="block text-xs font-semibold text-gray-400 mb-1">輸入金額</label>
@@ -47,33 +52,22 @@
 
         <label class="block text-xs font-semibold text-gray-400 mb-2">選擇分類</label>
         <div class="grid grid-cols-2 gap-2.5 mb-4">
-          <button onclick="selectCategory('飲食')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium hover:border-emerald-500 hover:bg-emerald-50" data-cat="飲食">
-            🍱 飲食
-          </button>
-          <button onclick="selectCategory('交通')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium hover:border-emerald-500 hover:bg-emerald-50" data-cat="交通">
-            🚇 交通
-          </button>
-          <button onclick="selectCategory('固定支出')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium hover:border-emerald-500 hover:bg-emerald-50" data-cat="固定支出">
-            🏠 固定支出
-          </button>
-          <button onclick="selectCategory('變動支出')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium hover:border-emerald-500 hover:bg-emerald-50" data-cat="變動支出">
-            🛍️ 變動支出
-          </button>
+          <button onclick="selectCategory('飲食')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium" data-cat="飲食">🍱 飲食</button>
+          <button onclick="selectCategory('交通')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium" data-cat="交通">🚇 交通</button>
+          <button onclick="selectCategory('固定支出')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium" data-cat="固定支出">🏠 固定支出</button>
+          <button onclick="selectCategory('變動支出')" class="cat-btn border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2 font-medium" data-cat="變動支出">🛍️ 變動支出</button>
         </div>
 
-        <input id="input-note" type="text" placeholder="備註（選填，例：晚餐拉麵）" class="w-full px-3 py-2 text-sm bg-gray-50 border rounded-xl mb-4 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+        <input id="input-note" type="text" placeholder="備註（例：老婆買水果、好市多）" class="w-full px-3 py-2 text-sm bg-gray-50 border rounded-xl mb-4 focus:outline-none focus:ring-1 focus:ring-emerald-500">
 
-        <button onclick="saveRecord()" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-transform">
-          記錄這筆支出
+        <button id="btn-submit" onclick="saveRecord()" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <span>記錄這筆支出</span>
         </button>
       </div>
 
-      <!-- 今日記錄清單 -->
       <div>
-        <h2 class="text-sm font-bold text-gray-500 mb-2 px-1">近期花費</h2>
-        <div id="recent-list" class="space-y-2">
-          <!-- 動態插入 -->
-        </div>
+        <h2 class="text-sm font-bold text-gray-500 mb-2 px-1">近期花費（點擊垃圾桶可刪除）</h2>
+        <div id="recent-list" class="space-y-2"></div>
       </div>
     </section>
 
@@ -84,54 +78,39 @@
         <div class="space-y-3">
           <div>
             <label class="text-xs text-gray-500 font-medium">總月預算</label>
-            <input id="budget-total" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm font-semibold" placeholder="例如：30000">
+            <input id="budget-total" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm font-semibold">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-xs text-gray-500">🍱 飲食預算</label>
-              <input id="budget-飲食" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm" placeholder="10000">
+              <input id="budget-飲食" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm">
             </div>
             <div>
               <label class="text-xs text-gray-500">🚇 交通預算</label>
-              <input id="budget-交通" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm" placeholder="2000">
+              <input id="budget-交通" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm">
             </div>
             <div>
               <label class="text-xs text-gray-500">🏠 固定預算</label>
-              <input id="budget-固定支出" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm" placeholder="12000">
+              <input id="budget-固定支出" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm">
             </div>
             <div>
               <label class="text-xs text-gray-500">🛍️ 變動預算</label>
-              <input id="budget-變動支出" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm" placeholder="6000">
+              <input id="budget-變動支出" type="number" class="w-full border rounded-xl px-3 py-2 mt-1 text-sm">
             </div>
           </div>
-          <button onclick="saveBudgets()" class="w-full mt-2 bg-gray-800 text-white font-semibold py-2.5 rounded-xl text-sm">
-            更新預算
-          </button>
+          <button onclick="saveBudgets()" class="w-full mt-2 bg-gray-800 text-white font-semibold py-2.5 rounded-xl text-sm">更新預算至雲端</button>
         </div>
       </div>
-
-      <!-- 各類別進度條 -->
-      <div id="category-progress-list" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-        <!-- 動態渲染各分類預算水位 -->
-      </div>
+      <div id="category-progress-list" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"></div>
     </section>
 
-    <!-- TAB 3: 視覺化圖表與洞察 -->
+    <!-- TAB 3: 洞察圖表 -->
     <section id="tab-insight" class="space-y-4 hidden">
-      <!-- 智慧洞察卡片 -->
-      <div id="insight-cards" class="space-y-2">
-        <!-- 動態產生超支警報、平日週末分析、異常通知 -->
-      </div>
-
-      <!-- 圓餅圖 -->
+      <div id="insight-cards" class="space-y-2"></div>
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">支出分類佔比</h3>
-        <div class="w-full max-w-[260px] mx-auto">
-          <canvas id="pieChart"></canvas>
-        </div>
+        <div class="w-full max-w-[260px] mx-auto"><canvas id="pieChart"></canvas></div>
       </div>
-
-      <!-- 平日 vs 週末開銷 -->
       <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">平日 vs. 週末日均支出</h3>
         <canvas id="barChart" height="150"></canvas>
@@ -140,28 +119,17 @@
 
   </main>
 
-  <!-- 底部導覽列 -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t flex justify-around py-2.5 max-w-md mx-auto z-50">
-    <button onclick="switchTab('log')" id="nav-log" class="flex flex-col items-center gap-1 text-emerald-600 font-semibold text-xs">
-      <i class="fa-solid fa-pen-to-square text-lg"></i>
-      <span>記帳</span>
-    </button>
-    <button onclick="switchTab('budget')" id="nav-budget" class="flex flex-col items-center gap-1 text-gray-400 font-semibold text-xs">
-      <i class="fa-solid fa-wallet text-lg"></i>
-      <span>預算</span>
-    </button>
-    <button onclick="switchTab('insight')" id="nav-insight" class="flex flex-col items-center gap-1 text-gray-400 font-semibold text-xs">
-      <i class="fa-solid fa-chart-pie text-lg"></i>
-      <span>洞察</span>
-    </button>
+    <button onclick="switchTab('log')" id="nav-log" class="flex flex-col items-center gap-1 text-emerald-600 font-semibold text-xs"><i class="fa-solid fa-pen-to-square text-lg"></i><span>記帳</span></button>
+    <button onclick="switchTab('budget')" id="nav-budget" class="flex flex-col items-center gap-1 text-gray-400 font-semibold text-xs"><i class="fa-solid fa-wallet text-lg"></i><span>預算</span></button>
+    <button onclick="switchTab('insight')" id="nav-insight" class="flex flex-col items-center gap-1 text-gray-400 font-semibold text-xs"><i class="fa-solid fa-chart-pie text-lg"></i><span>洞察</span></button>
   </nav>
 
-  <!-- App 核心運算邏輯 -->
   <script>
     const CATEGORIES = ['飲食', '交通', '固定支出', '變動支出'];
     let selectedCat = '飲食';
-    let records = JSON.parse(localStorage.getItem('my_records') || '[]');
-    let budgets = JSON.parse(localStorage.getItem('my_budgets') || JSON.stringify({
+    let records = JSON.parse(localStorage.getItem('cached_records') || '[]');
+    let budgets = JSON.parse(localStorage.getItem('cached_budgets') || JSON.stringify({
       total: 30000, '飲食': 10000, '交通': 2000, '固定支出': 12000, '變動支出': 6000
     }));
 
@@ -169,11 +137,35 @@
     let barChartInstance = null;
 
     function init() {
-      const now = new Date();
-      document.getElementById('current-month').innerText = `${now.getMonth() + 1} 月`;
       updateCatButtons();
       loadBudgetsToUI();
       renderDashboard();
+      fetchCloudData(); // 啟動自動從試算表撈取最新資料
+    }
+
+    // 從 Google 試算表抓取最新資料
+    async function fetchCloudData() {
+      if (!API_URL || API_URL.includes("請換成")) return;
+      const icon = document.getElementById('refresh-icon');
+      if (icon) icon.classList.add('fa-spin');
+      document.getElementById('sync-status').innerText = '🔄 同步中...';
+
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        records = data.records;
+        budgets = data.budgets;
+        localStorage.setItem('cached_records', JSON.stringify(records));
+        localStorage.setItem('cached_budgets', JSON.stringify(budgets));
+        renderDashboard();
+        loadBudgetsToUI();
+        document.getElementById('sync-status').innerText = '☁️ 雲端已同步';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('sync-status').innerText = '⚠️ 離線快取';
+      } finally {
+        if (icon) icon.classList.remove('fa-spin');
+      }
     }
 
     function switchTab(tab) {
@@ -183,10 +175,7 @@
       });
       document.getElementById(`tab-${tab}`).classList.remove('hidden');
       document.getElementById(`nav-${tab}`).className = 'flex flex-col items-center gap-1 text-emerald-600 font-semibold text-xs';
-
-      if (tab === 'insight') {
-        renderInsights();
-      }
+      if (tab === 'insight') renderInsights();
     }
 
     function selectCategory(cat) {
@@ -204,10 +193,15 @@
       });
     }
 
-    function saveRecord() {
+    // 記帳（同時寫入本地 + 雲端 Google 試算表）
+    async function saveRecord() {
       const amount = parseFloat(document.getElementById('input-amount').value);
       const note = document.getElementById('input-note').value.trim();
-      if (!amount || amount <= 0) return alert('請輸入有效金額！');
+      if (!amount || amount <= 0) return alert('請輸入金額！');
+
+      const btn = document.getElementById('btn-submit');
+      btn.innerText = '正在寫入雲端...';
+      btn.disabled = true;
 
       const record = {
         id: Date.now(),
@@ -217,25 +211,46 @@
         date: new Date().toISOString()
       };
 
+      // 先樂觀更新畫面，不必等網路
       records.unshift(record);
-      localStorage.setItem('my_records', JSON.stringify(records));
-
+      localStorage.setItem('cached_records', JSON.stringify(records));
+      renderDashboard();
       document.getElementById('input-amount').value = '';
       document.getElementById('input-note').value = '';
-      renderDashboard();
+
+      // 背景傳送到 Google 試算表
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'addRecord', record: record })
+        });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btn.innerText = '記錄這筆支出';
+        btn.disabled = false;
+      }
     }
 
-    function deleteRecord(id) {
+    async function deleteRecord(id) {
+      if (!confirm('確定要刪除這筆花費嗎？')) return;
       records = records.filter(r => r.id !== id);
-      localStorage.setItem('my_records', JSON.stringify(records));
+      localStorage.setItem('cached_records', JSON.stringify(records));
       renderDashboard();
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteRecord', id: id })
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     function renderDashboard() {
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
-
-      // 過濾本月紀錄
       const thisMonthRecords = records.filter(r => {
         const d = new Date(r.date);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -245,15 +260,12 @@
       document.getElementById('total-spent').innerText = `$${totalSpent.toLocaleString()}`;
       document.getElementById('total-budget-display').innerText = `$${(budgets.total || 0).toLocaleString()}`;
 
-      // 進度條
       const ratio = budgets.total > 0 ? (totalSpent / budgets.total) * 100 : 0;
       const bar = document.getElementById('total-progress-bar');
       bar.style.width = `${Math.min(ratio, 100)}%`;
       bar.className = `h-2.5 rounded-full transition-all duration-300 ${ratio > 100 ? 'bg-rose-500' : ratio > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`;
 
-      // 渲染近期花費 (前 10 筆)
-      const list = document.getElementById('recent-list');
-      list.innerHTML = records.slice(0, 10).map(r => `
+      document.getElementById('recent-list').innerHTML = records.slice(0, 10).map(r => `
         <div class="flex justify-between items-center bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm">
           <div>
             <div class="font-bold text-gray-800 text-sm">${r.note}</div>
@@ -266,7 +278,6 @@
         </div>
       `).join('');
 
-      // 渲染分類預算進度
       renderCategoryProgress(thisMonthRecords);
     }
 
@@ -281,29 +292,33 @@
           const spent = catSpend[cat] || 0;
           const limit = budgets[cat] || 1;
           const pct = Math.min((spent / limit) * 100, 100);
-          const isOver = spent > limit;
           return `
             <div>
               <div class="flex justify-between text-xs mb-1">
                 <span class="font-medium">${cat}</span>
-                <span class="${isOver ? 'text-rose-500 font-bold' : 'text-gray-500'}">$${spent.toLocaleString()} / $${limit.toLocaleString()}</span>
+                <span class="${spent > limit ? 'text-rose-500 font-bold' : 'text-gray-500'}">$${spent.toLocaleString()} / $${limit.toLocaleString()}</span>
               </div>
               <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                <div class="${isOver ? 'bg-rose-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'} h-2 rounded-full" style="width: ${pct}%"></div>
+                <div class="${spent > limit ? 'bg-rose-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'} h-2 rounded-full" style="width: ${pct}%"></div>
               </div>
             </div>
           `;
         }).join('');
     }
 
-    function saveBudgets() {
+    async function saveBudgets() {
       budgets.total = parseFloat(document.getElementById('budget-total').value) || 0;
       CATEGORIES.forEach(cat => {
         budgets[cat] = parseFloat(document.getElementById(`budget-${cat}`).value) || 0;
       });
-      localStorage.setItem('my_budgets', JSON.stringify(budgets));
-      alert('預算更新成功！');
+      localStorage.setItem('cached_budgets', JSON.stringify(budgets));
+      alert('預算已同步至雲端！');
       renderDashboard();
+
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'saveBudgets', budgets: budgets })
+      });
     }
 
     function loadBudgetsToUI() {
@@ -313,7 +328,6 @@
       });
     }
 
-    // ====== 智慧洞察引擎 (Insights Engine) ======
     function renderInsights() {
       const now = new Date();
       const currentMonth = now.getMonth();
@@ -329,7 +343,6 @@
       const totalSpent = thisMonthRecords.reduce((sum, r) => sum + r.amount, 0);
       const cards = [];
 
-      // 1. 超支預警演算法 (Burn-Rate Projection)
       if (budgets.total > 0 && dayOfMonth > 1) {
         const dailyRate = totalSpent / dayOfMonth;
         const projectedMonthSpend = dailyRate * totalDays;
@@ -339,38 +352,25 @@
           const safeDaily = Math.max(0, (budgets.total - totalSpent) / (totalDays - dayOfMonth));
           cards.push(`
             <div class="bg-rose-50 border border-rose-200 p-4 rounded-xl">
-              <div class="flex items-center gap-2 text-rose-700 font-bold text-sm">
-                <i class="fa-solid fa-triangle-exclamation"></i> 超支預警
-              </div>
-              <p class="text-xs text-rose-600 mt-1 leading-relaxed">
-                照目前燃燒速度，月底預計花費 <strong>$${Math.round(projectedMonthSpend).toLocaleString()}</strong>（超支 $${Math.round(diff).toLocaleString()}）。建議接下來每日花費控制在 <strong>$${Math.round(safeDaily).toLocaleString()}</strong> 以內。
-              </p>
+              <div class="flex items-center gap-2 text-rose-700 font-bold text-sm"><i class="fa-solid fa-triangle-exclamation"></i> 超支預警</div>
+              <p class="text-xs text-rose-600 mt-1">照目前速度，本月預估花費 <strong>$${Math.round(projectedMonthSpend).toLocaleString()}</strong>（超支 $${Math.round(diff).toLocaleString()}）。建議每日花費控制在 <strong>$${Math.round(safeDaily).toLocaleString()}</strong> 以內。</p>
             </div>
           `);
         } else {
           cards.push(`
             <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
-              <div class="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-                <i class="fa-solid fa-circle-check"></i> 預算健康
-              </div>
-              <p class="text-xs text-emerald-600 mt-1">目前進度掌控良好，預估月底將結餘 $${Math.round(-diff).toLocaleString()} 元！</p>
+              <div class="flex items-center gap-2 text-emerald-700 font-bold text-sm"><i class="fa-solid fa-circle-check"></i> 預算健康</div>
+              <p class="text-xs text-emerald-600 mt-1">控制得很好！預計本月結餘 <strong>$${Math.round(-diff).toLocaleString()}</strong> 元。</p>
             </div>
           `);
         }
       }
 
-      // 2. 平日 vs 週末開銷分析
-      let weekdaySum = 0, weekdayCount = 0;
-      let weekendSum = 0, weekendCount = 0;
+      let weekdaySum = 0, weekdayCount = 0, weekendSum = 0, weekendCount = 0;
       thisMonthRecords.forEach(r => {
         const day = new Date(r.date).getDay();
-        if (day === 0 || day === 6) {
-          weekendSum += r.amount;
-        } else {
-          weekdaySum += r.amount;
-        }
+        (day === 0 || day === 6) ? weekendSum += r.amount : weekdaySum += r.amount;
       });
-      // 粗估本月已過平日/週末天數
       for (let i = 1; i <= dayOfMonth; i++) {
         const d = new Date(currentYear, currentMonth, i).getDay();
         (d === 0 || d === 6) ? weekendCount++ : weekdayCount++;
@@ -381,73 +381,41 @@
       if (weekendAvg > weekdayAvg * 1.5 && weekendAvg > 0) {
         cards.push(`
           <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl">
-            <div class="flex items-center gap-2 text-amber-700 font-bold text-sm">
-              <i class="fa-solid fa-beer-mug-empty"></i> 週末開銷模式
-            </div>
-            <p class="text-xs text-amber-600 mt-1">
-              你的週末平均花費（$${Math.round(weekendAvg)}）是平日（$${Math.round(weekdayAvg)}）的 <strong>${(weekendAvg/weekdayAvg).toFixed(1)} 倍</strong>，假日的社交或變動消費是主要推手！
-            </p>
+            <div class="flex items-center gap-2 text-amber-700 font-bold text-sm"><i class="fa-solid fa-beer-mug-empty"></i> 週末開銷模式</div>
+            <p class="text-xs text-amber-600 mt-1">週末日均花費（$${Math.round(weekendAvg)}）是平日（$${Math.round(weekdayAvg)}）的 <strong>${(weekendAvg/weekdayAvg).toFixed(1)} 倍</strong>！</p>
           </div>
         `);
       }
 
-      // 3. 異常花費偵測 (某類別佔比過高)
       const catSpend = {};
       CATEGORIES.forEach(c => catSpend[c] = 0);
       thisMonthRecords.forEach(r => catSpend[r.category] += r.amount);
 
-      if (totalSpent > 0 && (catSpend['變動支出'] / totalSpent) > 0.35) {
-        cards.push(`
-          <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl">
-            <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> 習慣追蹤：衝動消費警訊
-            </div>
-            <p class="text-xs text-indigo-600 mt-1">
-              本月「變動支出」已佔總開銷的 <strong>${Math.round((catSpend['變動支出'] / totalSpent) * 100)}%</strong>，稍微超出了理想警戒線（30%）。
-            </p>
-          </div>
-        `);
-      }
-
       document.getElementById('insight-cards').innerHTML = cards.join('') || '<div class="text-xs text-gray-400 text-center py-4">記錄更多資料後，AI 會在此自動顯示花費模式洞察！</div>';
 
-      // 繪製圓餅圖
       const pieCtx = document.getElementById('pieChart').getContext('2d');
       if (pieChartInstance) pieChartInstance.destroy();
       pieChartInstance = new Chart(pieCtx, {
         type: 'doughnut',
         data: {
           labels: CATEGORIES,
-          datasets: [{
-            data: CATEGORIES.map(c => catSpend[c]),
-            backgroundColor: ['#10b981', '#3b82f6', '#6366f1', '#f59e0b']
-          }]
+          datasets: [{ data: CATEGORIES.map(c => catSpend[c]), backgroundColor: ['#10b981', '#3b82f6', '#6366f1', '#f59e0b'] }]
         },
         options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
       });
 
-      // 繪製長條圖
       const barCtx = document.getElementById('barChart').getContext('2d');
       if (barChartInstance) barChartInstance.destroy();
       barChartInstance = new Chart(barCtx, {
         type: 'bar',
         data: {
           labels: ['平日日均', '週末日均'],
-          datasets: [{
-            label: '平均支出 ($)',
-            data: [Math.round(weekdayAvg), Math.round(weekendAvg)],
-            backgroundColor: ['#64748b', '#f97316'],
-            borderRadius: 8
-          }]
+          datasets: [{ label: '平均支出 ($)', data: [Math.round(weekdayAvg), Math.round(weekendAvg)], backgroundColor: ['#64748b', '#f97316'], borderRadius: 8 }]
         },
-        options: {
-          scales: { y: { beginAtZero: true } },
-          plugins: { legend: { display: false } }
-        }
+        options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
       });
     }
 
-    // 啟動
     init();
   </script>
 </body>
